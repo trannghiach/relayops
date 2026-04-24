@@ -33,7 +33,7 @@ func Load() Config {
 		NATSURL:             getEnv("NATS_URL", "nats://localhost:4222"),
 		DemoEnabled:         getBoolEnv("DEMO_ENABLED", false),
 		DemoAPIKey:          getEnv("DEMO_API_KEY", ""),
-		DemoMaxEvents:       getIntEnv("DEMO_MAX_EVENTS", 10),
+		DemoMaxEvents:       1,
 		DemoRandomFailure:   getBoolEnv("DEMO_RANDOM_FAILURE", false),
 		DemoFailureRate:     getFloatEnv("DEMO_FAILURE_RATE", 0.5),
 		DemoFastBackoff:     getBoolEnv("DEMO_FAST_BACKOFF", false),

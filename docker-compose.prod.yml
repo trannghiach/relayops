@@ -20,7 +20,7 @@ services:
     networks:
       - relayops-net
 
-    api:
+  api:
     build:
       context: ./backend
       dockerfile: Dockerfile
