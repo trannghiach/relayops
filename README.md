@@ -4,6 +4,10 @@ Event-driven job processing system that converts incoming events into asynchrono
 
 ---
 
+<img width="1594" height="929" alt="compressed_Recording2026-04-24144953-ezgif com-resize" src="https://github.com/user-attachments/assets/1e1e6423-676c-4807-b4e4-91008aaa8966" />
+
+---
+
 ## Demo
 
 Frontend: [http://localhost:3000](http://localhost:3000)    
