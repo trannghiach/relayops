@@ -122,16 +122,12 @@ func (h *ReadHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	query := fmt.Sprintf(`
-		SELECT id, event_id, job_type, channel, status,
-				attempts, max_attempts, available_at, created_at
-		FROM jobs
-		WHERE job_type ILIKE '%%%s%%' 
-			OR channel ILIKE '%%%s%%'
-			OR status ILIKE '%%%s%%'
-		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2
-	`, q, q, q)
+	query := fmt.Sprintf(
+		"SELECT id, event_id, job_type, channel, status, attempts, max_attempts, available_at, created_at FROM jobs WHERE job_type ILIKE '%%%s%%' OR channel ILIKE '%%%s%%' OR status ILIKE '%%%s%%' ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+		q,
+		q,
+		q,
+	)
 
 	rows, err := h.db.Query(r.Context(), query, limit, offset)
 	if err != nil {
