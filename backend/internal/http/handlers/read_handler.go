@@ -241,9 +241,11 @@ func (h *ReadHandler) ListDeadLetters(w http.ResponseWriter, r *http.Request) {
 	limit, offset := parseLimitOffset(r)
 
 	rows, err := h.db.Query(r.Context(), `
-		SELECT id, job_id, reason, payload_snapshot, created_at
-		FROM dead_letters
-		ORDER BY created_at DESC
+		SELECT dl.id, dl.job_id, dl.reason, dl.payload_snapshot, dl.created_at
+		FROM dead_letters dl
+		JOIN jobs j ON j.id = dl.job_id
+		WHERE j.status = 'dead_lettered'
+		ORDER BY dl.created_at DESC
 		LIMIT $1 OFFSET $2
 	`, limit, offset)
 	if err != nil {

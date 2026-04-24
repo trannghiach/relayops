@@ -45,20 +45,42 @@ func (h *ControlHandler) RetryJob(w http.ResponseWriter, r *http.Request) {
 func (h *ControlHandler) ReplayJob(w http.ResponseWriter, r *http.Request) {
 	jobID := chi.URLParam(r, "id")
 
-	cmdTag, err := h.db.Exec(r.Context(), `
+	tx, err := h.db.Begin(r.Context())
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	defer tx.Rollback(r.Context())
+
+	cmdTag, err := tx.Exec(r.Context(), `
 		UPDATE jobs
-		SET status = 'pending', 
+		SET status = 'pending',
 			last_error = NULL,
 			available_at = NOW(),
 			updated_at = NOW()
 		WHERE id = $1 AND status = 'dead_lettered'
 	`, jobID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+
 	if cmdTag.RowsAffected() == 0 {
-		http.Error(w, "job not in dead letter state for replay", http.StatusBadRequest)
+		writeError(w, http.StatusBadRequest, "job not in dead_lettered state")
+		return
+	}
+
+	_, err = tx.Exec(r.Context(), `
+		DELETE FROM dead_letters
+		WHERE job_id = $1
+	`, jobID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err := tx.Commit(r.Context()); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
