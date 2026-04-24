@@ -2,7 +2,7 @@
 
 import { api } from "@/lib/api";
 import type { JobItem } from "@/lib/types";
-import { Button, Table, Tag, Typography } from "antd";
+import { Button, Input, Space, Table, Tag, Typography } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -27,11 +27,21 @@ function statusColor(status: string) {
 export default function JobsPage() {
     const [jobs, setJobs] = useState<JobItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [query, setQuery] = useState("");
+
+    async function fetchJobs(q = "") {
+        setLoading(true);
+
+        try {
+            const res = await api.getJobs(q);
+            setJobs(res.data);
+        } finally {
+            setLoading(false);
+        }
+    }
 
     useEffect(() => {
-        api.getJobs()
-            .then((res) => setJobs(res.data))
-            .finally(() => setLoading(false));
+        fetchJobs();
     }, []);
 
     const columns: ColumnsType<JobItem> = [
@@ -69,15 +79,27 @@ export default function JobsPage() {
 
     return (
         <>
-            <Typography.Title level={2}>Jobs</Typography.Title>
+            <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+                <Typography.Title level={2}>Jobs</Typography.Title>
 
-            <Table
-                rowKey="id"
-                loading={loading}
-                columns={columns}
-                dataSource={jobs}
-                pagination={{ pageSize: 10 }}
-            />
+                <Input.Search
+                    placeholder="Search jobs by type, channel, or status"
+                    allowClear
+                    enterButton="Search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    onSearch={(value) => fetchJobs(value)}
+                    style={{ maxWidth: 520 }}
+                />
+
+                <Table
+                    rowKey="id"
+                    loading={loading}
+                    columns={columns}
+                    dataSource={jobs}
+                    pagination={{ pageSize: 10 }}
+                />
+            </Space>
         </>
     );
 }

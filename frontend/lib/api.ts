@@ -36,8 +36,19 @@ export const api = {
     getEvents: () =>
         request<ListResponse<EventItem>>("/events"),
 
-    getJobs: () =>
-        request<ListResponse<JobItem>>("/jobs"),
+    getJobs: (q?: string) => {
+        const params = new URLSearchParams();
+
+        if (q && q.trim() !== "") {
+            params.set("q", q.trim());
+        }
+
+        const query = params.toString();
+
+        return request<ListResponse<JobItem>>(
+            `/jobs${query ? `?${query}` : ""}`
+        );
+    },
 
     getJob: (id: string) =>
         request<ApiResponse<JobDetail>>(`/jobs/${id}`),
@@ -67,4 +78,3 @@ export const api = {
             body: JSON.stringify({ count }),
         }),
 };
-
