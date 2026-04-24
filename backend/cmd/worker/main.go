@@ -7,6 +7,7 @@ import (
 	"relayops/internal/broker"
 	"relayops/internal/config"
 	"relayops/internal/db"
+	"relayops/internal/dispatcher"
 	workerpkg "relayops/internal/worker"
 )
 
@@ -18,7 +19,8 @@ func main() {
 	nc := broker.NewNATS(cfg.NATSURL)
 
 	consumer := workerpkg.NewConsumer(pg, nc)
-	runner := workerpkg.NewRunner(pg)
+	emailDispatcher := dispatcher.NewEmailDispatcher(cfg.DemoRandomFailure, cfg.DemoFailureRate)
+	runner := workerpkg.NewRunner(pg, emailDispatcher, cfg.DemoFastBackoff)
 
 	if err := consumer.Start(ctx); err != nil {
 		log.Fatalf("failed to start worker: %v", err)

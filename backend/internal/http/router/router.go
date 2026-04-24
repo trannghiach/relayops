@@ -8,16 +8,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"
 
+	"relayops/internal/config"
 	"relayops/internal/http/handlers"
 )
 
-func NewRouter(db *pgxpool.Pool, nc *nats.Conn) http.Handler {
+func NewRouter(db *pgxpool.Pool, nc *nats.Conn, cfg config.Config) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   []string{"http://localhost:3000"},
 		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Demo-Key"},
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
@@ -26,11 +27,19 @@ func NewRouter(db *pgxpool.Pool, nc *nats.Conn) http.Handler {
 	readHandler := handlers.NewReadHandler(db)
 	controlHandler := handlers.NewControlHandler(db)
 	metricsHandler := handlers.NewMetricsHandler(db)
+	demoHandler := handlers.NewDemoHandler(
+		db,
+		nc,
+		cfg.DemoEnabled,
+		cfg.DemoAPIKey,
+		cfg.DemoMaxEvents,
+	)
 
 	r.Get("/health", handlers.Health)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Post("/events", eventHandler.CreateEvent)
+		r.Post("/demo/events", demoHandler.CreateDemoEvents)
 
 		r.Get("/events", readHandler.ListEvents)
 		r.Get("/events/{id}", readHandler.GetEvent)

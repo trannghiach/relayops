@@ -13,11 +13,21 @@ import (
 )
 
 type Runner struct {
-	db *pgxpool.Pool
+	db              *pgxpool.Pool
+	emailDispatcher *dispatcher.EmailDispatcher
+	fastBackoff     bool
 }
 
-func NewRunner(db *pgxpool.Pool) *Runner {
-	return &Runner{db: db}
+func NewRunner(
+	db *pgxpool.Pool,
+	emailDispatcher *dispatcher.EmailDispatcher,
+	fastBackoff bool,
+) *Runner {
+	return &Runner{
+		db:              db,
+		emailDispatcher: emailDispatcher,
+		fastBackoff:     fastBackoff,
+	}
 }
 
 func (r *Runner) Start(ctx context.Context) {
@@ -96,7 +106,7 @@ func (r *Runner) processJob(
 
 	switch channel {
 	case "email":
-		execErr = dispatcher.SendEmailMock(payload)
+		execErr = r.emailDispatcher.SendEmailMock(payload)
 	default:
 		execErr = fmt.Errorf("unsupported channel: %s", channel)
 	}
@@ -145,7 +155,7 @@ func (r *Runner) processJob(
 			}
 		} else {
 			// retry
-			backoff := computeBackoff(attemptNo)
+			backoff := r.computeBackoff(attemptNo)
 
 			_, err = tx.Exec(ctx, `
 				UPDATE jobs
@@ -236,15 +246,26 @@ func (r *Runner) processJob(
 	log.Printf("job %s succeeded on attempt %d", jobID, attemptNo)
 }
 
-func computeBackoff(attempts int) time.Duration {
-	switch attempts {
+func (r *Runner) computeBackoff(attempt int) time.Duration {
+	if r.fastBackoff {
+		switch attempt {
+		case 1:
+			return 1 * time.Second
+		case 2:
+			return 2 * time.Second
+		default:
+			return 3 * time.Second
+		}
+	}
+
+	switch attempt {
 	case 1:
-		return 1 * time.Second
+		return 10 * time.Second
 	case 2:
-		return 2 * time.Second
+		return 30 * time.Second
 	case 3:
-		return 3 * time.Second
+		return 60 * time.Second
 	default:
-		return 4 * time.Second
+		return 5 * time.Minute
 	}
 }

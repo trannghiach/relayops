@@ -22,7 +22,7 @@ func main() {
 	pg := db.NewPostgres(ctx, cfg.DatabaseURL)
 	nc := broker.NewNATS(cfg.NATSURL)
 
-	r := router.NewRouter(pg, nc)
+	r := router.NewRouter(pg, nc, cfg)
 
 	srv := &http.Server{
 		Addr:    ":8080",
