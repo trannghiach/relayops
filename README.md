@@ -7,6 +7,7 @@ Event-driven job processing system that converts incoming events into asynchrono
 ## Demo
 
 Frontend: [http://localhost:3000](http://localhost:3000)
+
 Backend: [http://localhost:8080](http://localhost:8080)
 
 ---
@@ -158,7 +159,9 @@ System exposes:
 ## Tech Stack
 
 Frontend: Next.js, React, Ant Design
+
 Backend: Go (chi), PostgreSQL
+
 Messaging: NATS
 
 ---
