@@ -109,8 +109,8 @@ export default function JobDetailPage() {
                     <Descriptions.Item label="Event ID">{job.event_id}</Descriptions.Item>
                     <Descriptions.Item label="Job Type">{job.job_type}</Descriptions.Item>
                     <Descriptions.Item label="Channel">{job.channel}</Descriptions.Item>
-                    <Descriptions.Item label="Attempts">
-                        {job.attempts}/{job.max_attempts}
+                    <Descriptions.Item label="Executions">
+                        {job.attempts} total
                     </Descriptions.Item>
                     <Descriptions.Item label="Last Error">
                         {job.last_error || "-"}
