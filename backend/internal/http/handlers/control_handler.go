@@ -48,7 +48,6 @@ func (h *ControlHandler) ReplayJob(w http.ResponseWriter, r *http.Request) {
 	cmdTag, err := h.db.Exec(r.Context(), `
 		UPDATE jobs
 		SET status = 'pending', 
-			attempts = 0,
 			last_error = NULL,
 			available_at = NOW(),
 			updated_at = NOW()
