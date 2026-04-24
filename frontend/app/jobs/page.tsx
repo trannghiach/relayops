@@ -2,25 +2,19 @@
 
 import { api } from "@/lib/api";
 import type { JobItem } from "@/lib/types";
-import { Button, Input, Space, Table, Tag, Typography } from "antd";
+import { Button, Input, Space, Table, Tag, Typography, message } from "antd"; 
 import type { ColumnsType } from "antd/es/table";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 function statusColor(status: string) {
     switch (status) {
-        case "succeeded":
-            return "green";
-        case "pending":
-            return "blue";
-        case "processing":
-            return "orange";
-        case "dead_lettered":
-            return "red";
-        case "failed":
-            return "volcano";
-        default:
-            return "default";
+        case "succeeded": return "green";
+        case "pending": return "blue";
+        case "processing": return "orange";
+        case "dead_lettered": return "red";
+        case "failed": return "volcano";
+        default: return "default";
     }
 }
 
@@ -31,10 +25,15 @@ export default function JobsPage() {
 
     async function fetchJobs(q = "") {
         setLoading(true);
-
         try {
             const res = await api.getJobs(q);
-            setJobs(res.data);
+            setJobs(res.data || []);
+        } catch (err: any) {
+            message.error({
+                content: `Error: ${err.message}`,
+                duration: 5,
+            });
+            setJobs([]); 
         } finally {
             setLoading(false);
         }
@@ -60,17 +59,24 @@ export default function JobsPage() {
         },
         {
             title: "Executions",
-            render: (_, row) => `${row.attempts} total`,
+            render: (_, row) => `${row.attempts || 0} total`, 
         },
         {
             title: "Created At",
             dataIndex: "created_at",
-            render: (v) => new Date(v).toLocaleString(),
+            render: (v) => {
+                try {
+                    const d = new Date(v);
+                    return isNaN(d.getTime()) ? String(v) : d.toLocaleString();
+                } catch {
+                    return String(v);
+                }
+            },
         },
         {
             title: "Action",
             render: (_, row) => (
-                <Link href={`/jobs/${row.id}`}>
+                <Link href={`/jobs/${row.id || ''}`}>
                     <Button size="small">View</Button>
                 </Link>
             ),
@@ -79,7 +85,7 @@ export default function JobsPage() {
 
     return (
         <>
-            <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+            <Space orientation="vertical" size="middle" style={{ width: "100%" }}>
                 <Typography.Title level={2}>Jobs</Typography.Title>
 
                 <Input.Search
