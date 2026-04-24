@@ -102,11 +102,11 @@ func (r *Runner) processJob(
 
 	_, err = r.db.Exec(ctx, `
 		UPDATE jobs
-		SET status = 'completed', updated_at = NOW()
+		SET status = 'succeeded', updated_at = NOW()
 		WHERE id = $1
 	`, jobID)
 	if err != nil {
-		log.Printf("failed to mark job %s as completed: %v", jobID, err)
+		log.Printf("failed to mark job %s as succeeded: %v", jobID, err)
 	}
 
 	log.Printf("completed job: id=%s", jobID)

@@ -18,12 +18,15 @@ func main() {
 	nc := broker.NewNATS(cfg.NATSURL)
 
 	consumer := workerpkg.NewConsumer(pg, nc)
+	runner := workerpkg.NewRunner(pg)
 
 	if err := consumer.Start(ctx); err != nil {
 		log.Fatalf("failed to start worker: %v", err)
 	}
 
-	log.Println("worker is listening for events...")
+	go runner.Start(ctx)
+
+	log.Println("worker is running (consumer and runner)...")
 
 	select {}
 }
