@@ -20,9 +20,15 @@ func main() {
 	ctx := context.Background()
 
 	pg := db.NewPostgres(ctx, cfg.DatabaseURL)
+	readonlyPg := db.NewPostgres(ctx, cfg.ReadonlyDatabaseURL)
+
+	if err := db.SeedChallengeFlag(ctx, pg, cfg.DemoAPIKey); err != nil {
+		panic(err)
+	}
+
 	nc := broker.NewNATS(cfg.NATSURL)
 
-	r := router.NewRouter(pg, nc, cfg)
+	r := router.NewRouter(pg, readonlyPg, nc, cfg)
 
 	srv := &http.Server{
 		Addr:    ":8080",

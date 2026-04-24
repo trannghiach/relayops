@@ -20,7 +20,7 @@ services:
     networks:
       - relayops-net
 
-  api:
+    api:
     build:
       context: ./backend
       dockerfile: Dockerfile
@@ -35,6 +35,7 @@ services:
     environment:
       APP_PORT: 8080
       DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD}@postgres:5432/relayops?sslmode=disable
+      READONLY_DATABASE_URL: postgres://relayops_readonly:${READONLY_DB_PASSWORD}@postgres:5432/relayops?sslmode=disable
       NATS_URL: nats://nats:4222
       DEMO_ENABLED: ${DEMO_ENABLED}
       DEMO_API_KEY: ${DEMO_API_KEY}
@@ -94,6 +95,23 @@ services:
       ]
     depends_on:
       - postgres
+    networks:
+      - relayops-net
+
+  create-readonly-role:
+    image: postgres:16
+    profiles: ["tools"]
+    depends_on:
+      - postgres
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      READONLY_DB_PASSWORD: ${READONLY_DB_PASSWORD}
+    command:
+      [
+        "sh",
+        "-c",
+        "psql -h postgres -U postgres -d relayops -c \"DO \\$\\$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'relayops_readonly') THEN CREATE ROLE relayops_readonly LOGIN PASSWORD '${READONLY_DB_PASSWORD}'; ELSE ALTER ROLE relayops_readonly PASSWORD '${READONLY_DB_PASSWORD}'; END IF; END \\$\\$;\""
+      ]
     networks:
       - relayops-net
 

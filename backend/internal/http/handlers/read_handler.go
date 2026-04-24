@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -113,13 +115,25 @@ func (h *ReadHandler) GetEvent(w http.ResponseWriter, r *http.Request) {
 func (h *ReadHandler) ListJobs(w http.ResponseWriter, r *http.Request) {
 	limit, offset := parseLimitOffset(r)
 
-	rows, err := h.db.Query(r.Context(), `
-		SELECT id, event_id, job_type, channel, status, 
+	q := r.URL.Query().Get("q")
+
+	if strings.Contains(q, ";") {
+		writeError(w, http.StatusBadRequest, "invalid search query")
+		return
+	}
+
+	query := fmt.Sprintf(`
+		SELECT id, event_id, job_type, channel, status,
 				attempts, max_attempts, available_at, created_at
 		FROM jobs
+		WHERE job_type ILIKE '%%%s%%' 
+			OR channel ILIKE '%%%s%%'
+			OR status ILIKE '%%%s%%'
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
-	`, limit, offset)
+	`, q, q, q)
+
+	rows, err := h.db.Query(r.Context(), query, limit, offset)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return

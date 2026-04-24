@@ -12,7 +12,7 @@ import (
 	"relayops/internal/http/handlers"
 )
 
-func NewRouter(db *pgxpool.Pool, nc *nats.Conn, cfg config.Config) http.Handler {
+func NewRouter(db *pgxpool.Pool, readDB *pgxpool.Pool, nc *nats.Conn, cfg config.Config) http.Handler {
 	r := chi.NewRouter()
 
 	r.Use(cors.Handler(cors.Options{
@@ -24,7 +24,7 @@ func NewRouter(db *pgxpool.Pool, nc *nats.Conn, cfg config.Config) http.Handler 
 	}))
 
 	eventHandler := handlers.NewEventHandler(db, nc)
-	readHandler := handlers.NewReadHandler(db)
+	readHandler := handlers.NewReadHandler(readDB)
 	controlHandler := handlers.NewControlHandler(db)
 	metricsHandler := handlers.NewMetricsHandler(db)
 	demoHandler := handlers.NewDemoHandler(
