@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"relayops/internal/dispatcher"
@@ -72,6 +73,7 @@ func (r *Runner) processJob(
 	attempts int,
 	maxAttempts int,
 ) {
+	// 1. claim job
 	cmdTag, err := r.db.Exec(ctx, `
 		UPDATE jobs
 		SET status = 'processing', claimed_at = NOW(), updated_at = NOW()
@@ -87,7 +89,11 @@ func (r *Runner) processJob(
 
 	log.Printf("processing job: id=%s channel=%s attempts=%d/%d", jobID, channel, attempts, maxAttempts)
 
+	// 2. external call (no tx)
+	startedAt := time.Now()
+
 	var execErr error
+
 	switch channel {
 	case "email":
 		execErr = dispatcher.SendEmailMock(payload)
@@ -95,78 +101,150 @@ func (r *Runner) processJob(
 		execErr = fmt.Errorf("unsupported channel: %s", channel)
 	}
 
-	if execErr != nil {
-		r.handleFailure(ctx, jobID, attempts, maxAttempts, execErr)
+	finishedAt := time.Now()
+	attemptNo := attempts + 1
+
+	// 3. db tx (atomic update job + record attempt)
+	tx, err := r.db.Begin(ctx)
+	if err != nil {
+		log.Printf("failed to begin transaction for job %s: %v", jobID, err)
 		return
 	}
+	defer tx.Rollback(ctx)
 
-	_, err = r.db.Exec(ctx, `
-		UPDATE jobs
-		SET status = 'succeeded', updated_at = NOW()
-		WHERE id = $1
-	`, jobID)
-	if err != nil {
-		log.Printf("failed to mark job %s as succeeded: %v", jobID, err)
-	}
-
-	log.Printf("completed job: id=%s", jobID)
-}
-
-func (r *Runner) handleFailure(
-	ctx context.Context,
-	jobID string,
-	attempts int,
-	maxAttempts int,
-	execErr error,
-) {
-	nextAttempts := attempts + 1
-
-	if nextAttempts >= maxAttempts {
-		_, err := r.db.Exec(ctx, `
-			UPDATE jobs
-			SET status = 'dead_lettered',
-				attempts = $2,
-				last_error = $3,
-				updated_at = NOW()
+	if execErr != nil {
+		isDeadLetter := attemptNo >= maxAttempts
+		// ------- failure handling-------
+		if isDeadLetter {
+			// dead letter
+			_, err = tx.Exec(ctx, `
+				UPDATE jobs
+				SET status = 'dead_lettered',
+					attempts = $2,
+					last_error = $3,
+					updated_at = NOW()
 				WHERE id = $1
-		`, jobID, nextAttempts, execErr.Error())
+			`, jobID, attemptNo, execErr.Error())
+			if err != nil {
+				log.Printf("failed to dead-letter job %s: %v", jobID, err)
+				return
+			}
+
+			_, err = tx.Exec(ctx, `
+				INSERT INTO dead_letters (
+					id, job_id, reason, payload_snapshot, created_at
+				) 
+				SELECT $1, id, $2, payload, NOW()
+				FROM jobs WHERE id = $3
+				ON CONFLICT (job_id) DO NOTHING
+			`, uuid.New(), execErr.Error(), jobID)
+			if err != nil {
+				log.Printf("failed to insert dead letter for job %s: %v", jobID,
+					err)
+				return
+			}
+		} else {
+			// retry
+			backoff := computeBackoff(attemptNo)
+
+			_, err = tx.Exec(ctx, `
+				UPDATE jobs
+				SET status = 'pending',
+					attempts = $2,
+					last_error = $3,
+					available_at = NOW() + $4 * INTERVAL '1 second',
+					updated_at = NOW()
+				WHERE id = $1
+			`, jobID, attemptNo, execErr.Error(), int(backoff.Seconds()))
+			if err != nil {
+				log.Printf("failed to reschedule job %s: %v", jobID, err)
+				return
+			}
+		}
+
+		// insert record attempt
+		_, err = tx.Exec(ctx, `
+			INSERT INTO delivery_attempts (
+				id, job_id, attempt_no, provider, status,
+				error_message, started_at, finished_at 
+			) VALUES ($1, $2, $3, $4, 'failed', $5, $6, $7)
+		`,
+			uuid.New(),
+			jobID,
+			attemptNo,
+			channel,
+			execErr.Error(),
+			startedAt,
+			finishedAt,
+		)
 		if err != nil {
-			log.Printf("failed to dead-letter job %s: %v", jobID, err)
+			log.Printf("failed to insert job attempt for job %s: %v", jobID,
+				err)
 			return
 		}
 
-		log.Printf("job dead-lettered: id=%s attempts=%d error=%v", jobID, nextAttempts, execErr)
+		if err := tx.Commit(ctx); err != nil {
+			log.Printf("failed to commit transaction for job %s: %v", jobID, err)
+			return
+		}
+
+		if isDeadLetter {
+			log.Printf("job %s dead-lettered after %d attempts: %v", jobID, attemptNo, execErr)
+		} else {
+			log.Printf("job %s failed on attempt %d, will retry after backoff: %v", jobID, attemptNo, execErr)
+		}
 		return
 	}
 
-	backoff := computeBackoff(nextAttempts)
-
-	_, err := r.db.Exec(ctx, `
+	// ------- success handling -------
+	_, err = tx.Exec(ctx, `
 		UPDATE jobs
-		SET status = 'pending',
-			attempts = $2,
-			last_error = $3,
-			available_at = NOW() + $4 * INTERVAL '1 second',
+		SET status = 'succeeded', 
+			attempts = $2, 
+			last_error = NULL,
 			updated_at = NOW()
 		WHERE id = $1
-	`, jobID, nextAttempts, execErr.Error(), int(backoff.Seconds()))
+	`, jobID, attemptNo)
 	if err != nil {
-		log.Printf("failed to reschedule job %s: %v", jobID, err)
+		log.Printf("failed to mark job %s as succeeded: %v", jobID, err)
 		return
 	}
 
-	log.Printf("job rescheduled: id=%s attempts=%d error=%v next_in=%s", jobID, nextAttempts, execErr, backoff)
+	_, err = tx.Exec(ctx, `
+		INSERT INTO delivery_attempts (
+			id, job_id, attempt_no, provider, status,
+			started_at, finished_at 
+		) VALUES ($1, $2, $3, $4, 'succeeded', $5, $6)
+	`,
+		uuid.New(),
+		jobID,
+		attemptNo,
+		channel,
+		startedAt,
+		finishedAt,
+	)
+	if err != nil {
+		log.Printf("failed to insert job attempt for job %s: %v", jobID, err)
+		return
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		log.Printf("failed to commit transaction for job %s: %v", jobID, err)
+		return
+	}
+
+	log.Printf("job %s succeeded on attempt %d", jobID, attemptNo)
 }
 
 func computeBackoff(attempts int) time.Duration {
 	switch attempts {
 	case 1:
-		return 10 * time.Second
+		return 1 * time.Second
 	case 2:
-		return 30 * time.Second
+		return 2 * time.Second
 	case 3:
-		return 60 * time.Second
+		return 3 * time.Second
 	default:
-		return 5 * time.Minute
+		return 4 * time.Second
 	}
 }

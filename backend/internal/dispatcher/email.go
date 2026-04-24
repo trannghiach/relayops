@@ -19,7 +19,7 @@ func SendEmailMock(payload []byte) error {
 	log.Printf("sending email (mock) with template: %s", data.Template)
 
 	// uncomment to simulate failure
-	// return fmt.Errorf("simulated email sending failure")
+	return fmt.Errorf("simulated email sending failure")
 
-	return nil
+	// return nil
 }
