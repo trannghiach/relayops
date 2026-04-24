@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"relayops/internal/dispatcher"
 	"relayops/internal/domain"
 )
 
@@ -15,9 +16,12 @@ func PlanJobs(eventID string, eventType string) ([]domain.Job, error) {
 
 	switch eventType {
 	case "user.registered":
-		payloadBytes, _ := json.Marshal(map[string]interface{}{
-			"template": "welcome_email",
+		payloadBytes, err := json.Marshal(dispatcher.EmailPayload{
+			Template: "welcome_email",
 		})
+		if err != nil {
+			return nil, err
+		}
 
 		job := domain.Job{
 			ID:          uuid.New().String(),
