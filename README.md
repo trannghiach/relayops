@@ -72,7 +72,7 @@ flowchart LR
     Dashboard -->|Retry / Replay| API
 
     API -->|Query / Control| DB
-
+```
 ### Components
 
 * **API (Ingestion Layer)**
