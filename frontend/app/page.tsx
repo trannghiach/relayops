@@ -137,6 +137,7 @@ export default function OverviewPage() {
     <Space orientation="vertical" size="large" style={{ width: "100%" }}>
       <Space
         align="center"
+        wrap
         style={{ width: "100%", justifyContent: "space-between" }}
       >
         <Typography.Title level={2} style={{ margin: 0 }}>
@@ -149,23 +150,23 @@ export default function OverviewPage() {
       </Space>
 
       <Row gutter={[16, 16]}>
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card title="Total Events">{metrics.total_events}</Card>
         </Col>
 
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card title="Pending Jobs">{metrics.pending_jobs}</Card>
         </Col>
 
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card title="Succeeded Jobs">{metrics.succeeded_jobs}</Card>
         </Col>
 
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card title="Dead Letters">{metrics.dead_lettered_jobs}</Card>
         </Col>
 
-        <Col span={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card title="Total Attempts">{metrics.total_attempts}</Card>
         </Col>
       </Row>
@@ -176,6 +177,7 @@ export default function OverviewPage() {
           columns={jobColumns}
           dataSource={jobs}
           pagination={false}
+          scroll={{ x: "max-content" }}
         />
       </Card>
 
@@ -185,6 +187,7 @@ export default function OverviewPage() {
           columns={eventColumns}
           dataSource={events}
           pagination={false}
+          scroll={{ x: "max-content" }}
         />
       </Card>
 

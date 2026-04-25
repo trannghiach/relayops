@@ -54,6 +54,7 @@ export default function EventsPage() {
         columns={columns}
         dataSource={events}
         pagination={{ pageSize: 10 }}
+        scroll={{ x: "max-content" }}
       />
     </>
   );

@@ -66,6 +66,7 @@ export default function DeadLettersPage() {
         columns={columns}
         dataSource={items}
         pagination={{ pageSize: 10 }}
+        scroll={{ x: "max-content" }}
       />
     </>
   );

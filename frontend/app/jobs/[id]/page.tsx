@@ -104,7 +104,7 @@ export default function JobDetailPage() {
             </Space>
 
             <Card>
-                <Descriptions bordered column={2}>
+                <Descriptions bordered column={{ xs: 1, sm: 1, md: 2 }}>
                     <Descriptions.Item label="Job ID">{job.id}</Descriptions.Item>
                     <Descriptions.Item label="Event ID">{job.event_id}</Descriptions.Item>
                     <Descriptions.Item label="Job Type">{job.job_type}</Descriptions.Item>
@@ -143,7 +143,9 @@ export default function JobDetailPage() {
             </Space>
 
             <Card title="Payload">
-                <pre>{JSON.stringify(job.payload, null, 2)}</pre>
+                <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0 }}>
+                    {JSON.stringify(job.payload, null, 2)}
+                </pre>
             </Card>
 
             <Card title="Delivery Attempts">
@@ -153,6 +155,7 @@ export default function JobDetailPage() {
                     columns={attemptColumns}
                     dataSource={attempts}
                     pagination={false}
+                    scroll={{ x: "max-content" }}
                 />
             </Card>
         </Space>
