@@ -104,6 +104,7 @@ export default function JobsPage() {
                     columns={columns}
                     dataSource={jobs}
                     pagination={{ pageSize: 10 }}
+                    scroll={{ x: "max-content" }}
                 />
             </Space>
         </>
